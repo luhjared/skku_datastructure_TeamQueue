@@ -1,0 +1,10 @@
+{
+  "name": "assignment-planner-ai",
+  "version": "1.0.0",
+  "description": "TeamQueue: 과제 공지를 팀 역할과 작업 큐로 바꾸는 학생용 팀플 배분 서비스",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

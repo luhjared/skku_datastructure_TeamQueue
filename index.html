@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TeamQueue</title>
+    <meta
+      name="description"
+      content="과제 공지를 붙여넣으면 팀원 역할에 맞춰 작업을 분해하고 배정 초안을 만들어 주는 학생용 플래너"
+    />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <div class="ambient ambient-a"></div>
+    <div class="ambient ambient-b"></div>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <p class="eyebrow">TeamQueue</p>
+          <h1>TeamQueue, 과제 공지를 팀 역할과 작업 큐로 바꿔, 팀플 배분과 진행을 자동화하는 서비스</h1>
+          <p class="lede">
+            학생용 과제를 붙여넣고 팀원을 등록하면, AI가 작업을 쪼개고 추천 배정을 만들어 줍니다.
+          </p>
+        </div>
+
+        <div class="topbar-meta">
+          <div class="status-pill" id="apiBadge" aria-live="polite">연결 상태 확인 중</div>
+          <button class="ghost-button" id="loadSampleButton" type="button">샘플 불러오기</button>
+        </div>
+      </header>
+
+      <nav class="workflow-strip" aria-label="화면 전환">
+        <button class="workflow-step is-active" type="button" data-screen="intake">
+          <span>1</span>
+          <strong>입력</strong>
+        </button>
+        <button class="workflow-step" type="button" data-screen="team">
+          <span>2</span>
+          <strong>팀원</strong>
+        </button>
+        <button class="workflow-step" type="button" data-screen="analysis">
+          <span>3</span>
+          <strong>분석</strong>
+        </button>
+        <button class="workflow-step" type="button" data-screen="review">
+          <span>4</span>
+          <strong>검토</strong>
+        </button>
+        <button class="workflow-step" type="button" data-screen="share">
+          <span>5</span>
+          <strong>공유</strong>
+        </button>
+        <button class="workflow-step" type="button" data-screen="monitor">
+          <span>6</span>
+          <strong>모니터링</strong>
+        </button>
+      </nav>
+
+      <section class="next-action" aria-live="polite">
+        <div>
+          <p class="section-kicker">다음 행동</p>
+          <strong id="nextActionText">과제 텍스트와 팀원을 입력한 뒤 분석을 시작하세요.</strong>
+        </div>
+        <div class="metrics">
+          <div>
+            <span id="taskCountMetric">0</span>
+            <small>작업</small>
+          </div>
+          <div>
+            <span id="questionCountMetric">0</span>
+            <small>질문</small>
+          </div>
+          <div>
+            <span id="assignmentCoverageMetric">0%</span>
+            <small>배정률</small>
+          </div>
+        </div>
+      </section>
+
+      <main class="screen-stack">
+        <section class="screen-panel is-active" data-screen="intake">
+          <div class="screen-head">
+            <div>
+              <p class="section-kicker">1. 입력</p>
+              <h2>과제 공지 붙여넣기</h2>
+              <p class="screen-copy">공지문을 읽지 못하는 게 아니라, 너무 길어서 막히는 상황을 줄입니다.</p>
+            </div>
+            <div class="inline-status">
+              <span class="chip" id="modeChip">로컬 규칙</span>
+              <span class="chip subtle">먼저 입력, 그다음 분석</span>
+            </div>
+          </div>
+
+          <section class="panel">
+            <div class="field-grid">
+              <label class="field">
+                <span>과목명</span>
+                <input id="courseNameInput" type="text" placeholder="예: 데이터구조" />
+              </label>
+              <label class="field">
+                <span>프로젝트명</span>
+                <input id="projectTitleInput" type="text" placeholder="예: 팀플 업무 분배기" />
+              </label>
+              <label class="field">
+                <span>마감일</span>
+                <input id="deadlineInput" type="date" />
+              </label>
+              <label class="field">
+                <span>분석 기준</span>
+                <select id="strategySelect">
+                  <option value="balanced">균형 배정</option>
+                  <option value="speed">속도 우선</option>
+                  <option value="presentation">발표 우선</option>
+                </select>
+              </label>
+              <label class="field field-wide">
+                <span>OpenAI 모델 (고정)</span>
+                <select id="modelSelect" disabled>
+                  <option value="gpt-4o-mini" selected>gpt-4o-mini</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field field-block">
+              <span>과제 텍스트</span>
+              <textarea
+                id="briefTextInput"
+                rows="12"
+                placeholder="교수님 공지, LMS 안내, PDF에서 복사한 텍스트를 그대로 붙여넣으세요."
+              ></textarea>
+            </label>
+
+            <label class="field field-block">
+              <span>추가 확인 사항</span>
+              <textarea
+                id="clarificationInput"
+                rows="4"
+                placeholder="회의에서 나온 보완 설명이나 질문 답변을 적어두면 재분석할 때 반영됩니다."
+              ></textarea>
+            </label>
+
+            <div class="button-row">
+              <button class="primary-button" id="analyzeButton" type="button">AI 분석 시작</button>
+              <button class="ghost-button" id="resetButton" type="button">초기화</button>
+            </div>
+          </section>
+
+          <div class="screen-footer">
+            <button class="ghost-button" type="button" data-nav="monitor">마지막 화면 보기</button>
+            <button class="primary-button" type="button" data-nav="team">다음: 팀원 등록</button>
+          </div>
+        </section>
+
+        <section class="screen-panel" data-screen="team" hidden>
+          <div class="screen-head">
+            <div>
+              <p class="section-kicker">2. 팀원</p>
+              <h2>역할 태그와 가용 시간 등록</h2>
+              <p class="screen-copy">누가 무엇을 잘하는지 적어두면 배정 초안의 품질이 훨씬 좋아집니다.</p>
+            </div>
+            <div class="inline-status">
+              <button class="ghost-button" id="addMemberButton" type="button">팀원 추가</button>
+              <span class="chip subtle">역할, 상태, 가용량</span>
+            </div>
+          </div>
+
+          <section class="panel">
+            <div class="table-shell">
+              <div class="member-table-head">
+                <span>이름</span>
+                <span>역할 태그</span>
+                <span>상태</span>
+                <span>가용량</span>
+                <span>메모</span>
+                <span></span>
+              </div>
+              <div id="membersList" class="member-list" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <div class="screen-footer">
+            <button class="ghost-button" type="button" data-nav="intake">이전: 입력</button>
+            <button class="primary-button" type="button" data-nav="analysis">다음: 분석</button>
+          </div>
+        </section>
+
+        <section class="screen-panel" data-screen="analysis" hidden>
+          <div class="screen-head">
+            <div>
+              <p class="section-kicker">3. 분석</p>
+              <h2>요구사항과 질문 정리</h2>
+              <p class="screen-copy">AI가 과제 설명을 구조화하고, 불명확한 항목은 질문 큐로 분리합니다.</p>
+            </div>
+            <div class="inline-status">
+              <span class="chip" id="analysisModeChip">대기</span>
+              <span class="chip subtle" id="analysisSourceChip">소스 없음</span>
+            </div>
+          </div>
+
+          <div class="screen-grid">
+            <section class="panel" id="analysisPanel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">AI 해석</p>
+                  <h2 id="analysisTitle">아직 분석 전입니다</h2>
+                </div>
+              </div>
+
+              <p class="summary-text" id="analysisSummary">
+                과제 텍스트와 팀원 정보를 입력하면 요구사항, 작업 큐, 추천 배정이 여기에 표시됩니다.
+              </p>
+
+              <div class="summary-grid">
+                <div class="summary-block">
+                  <span class="summary-label">요구사항</span>
+                  <ul id="requirementsList" class="bullet-list"></ul>
+                </div>
+                <div class="summary-block">
+                  <span class="summary-label">제출물</span>
+                  <ul id="deliverablesList" class="bullet-list"></ul>
+                </div>
+                <div class="summary-block">
+                  <span class="summary-label">제약</span>
+                  <ul id="constraintsList" class="bullet-list"></ul>
+                </div>
+                <div class="summary-block">
+                  <span class="summary-label">경고</span>
+                  <ul id="warningsList" class="bullet-list"></ul>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel" id="questionsPanel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">질문 큐</p>
+                  <h2>추가 확인이 필요한 항목</h2>
+                </div>
+                <span class="chip" id="questionCountChip">0개</span>
+              </div>
+
+              <div id="questionsList" class="queue-list"></div>
+              <div class="button-row">
+                <button class="primary-button" id="reanalyzeButton" type="button">답변 반영 후 재분석</button>
+                <button class="ghost-button" id="clearAnswersButton" type="button">답변 지우기</button>
+              </div>
+            </section>
+          </div>
+
+          <div class="screen-footer">
+            <button class="ghost-button" type="button" data-nav="team">이전: 팀원</button>
+            <button class="primary-button" type="button" data-nav="review">다음: 배정 검토</button>
+          </div>
+        </section>
+
+        <section class="screen-panel" data-screen="review" hidden>
+          <div class="screen-head">
+            <div>
+              <p class="section-kicker">4. 검토</p>
+              <h2>작업 큐와 배정 초안</h2>
+              <p class="screen-copy">작업은 큐 순서대로, 담당자는 추천과 수정을 함께 보면서 조정합니다.</p>
+            </div>
+            <div class="inline-status">
+              <span class="chip" id="taskCountChip">0개</span>
+              <span class="chip" id="confirmedChip">미확정</span>
+            </div>
+          </div>
+
+          <div class="screen-grid">
+            <section class="panel" id="tasksPanel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">작업 큐</p>
+                  <h2>우선순위 순서대로 정리된 임무</h2>
+                </div>
+              </div>
+              <div id="tasksList" class="task-list" aria-live="polite"></div>
+            </section>
+
+            <section class="panel" id="assignmentPanel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">배정 검토</p>
+                  <h2>추천 배정과 최종 확정</h2>
+                </div>
+              </div>
+              <div id="assignmentList" class="assignment-list"></div>
+              <div class="button-row">
+                <button class="primary-button" id="confirmAllButton" type="button">배정 확정</button>
+                <button class="ghost-button" id="recalculateButton" type="button">재계산</button>
+              </div>
+            </section>
+          </div>
+
+          <div class="screen-footer">
+            <button class="ghost-button" type="button" data-nav="analysis">이전: 분석</button>
+            <button class="primary-button" type="button" data-nav="share">다음: 공유</button>
+          </div>
+        </section>
+
+        <section class="screen-panel" data-screen="share" hidden>
+          <div class="screen-head">
+            <div>
+              <p class="section-kicker">5. 공유</p>
+              <h2>내보내기와 활동 기록</h2>
+              <p class="screen-copy">팀톡에 보낼 요약과 최종 계획을 복사하고, 진행 기록을 정리합니다.</p>
+            </div>
+            <div class="inline-status">
+              <span class="chip subtle">복사 가능한 텍스트</span>
+              <span class="chip subtle">최근 활동</span>
+            </div>
+          </div>
+
+          <div class="screen-grid">
+            <section class="panel" id="sharePanel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">공유 텍스트</p>
+                  <h2>팀톡에 바로 붙여넣기</h2>
+                </div>
+              </div>
+              <p class="summary-text">
+                분석 결과를 요약한 텍스트와 작업 계획을 복사할 수 있습니다.
+              </p>
+              <pre id="sharePreview" class="share-preview"></pre>
+              <div class="button-row">
+                <button class="primary-button" id="copySummaryButton" type="button">요약 복사</button>
+                <button class="ghost-button" id="exportPlanButton" type="button">계획 복사</button>
+                <button class="ghost-button" type="button" data-action="reset-workspace">새 과제 시작</button>
+              </div>
+            </section>
+
+            <section class="panel" id="activityPanel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">최근 활동</p>
+                  <h2>입력과 배정의 흐름</h2>
+                </div>
+              </div>
+              <ol id="activityList" class="activity-list"></ol>
+            </section>
+          </div>
+
+          <div class="screen-footer">
+            <button class="ghost-button" type="button" data-nav="review">이전: 검토</button>
+            <button class="ghost-button" type="button" data-nav="intake">처음으로</button>
+            <button class="primary-button" type="button" data-nav="monitor">다음: 팀플 모니터링</button>
+          </div>
+        </section>
+
+        <section class="screen-panel" data-screen="monitor" hidden>
+          <div class="screen-head">
+            <div>
+              <p class="section-kicker">6. 모니터링</p>
+              <h2>팀플 모니터링</h2>
+              <p class="screen-copy">배분된 작업이 지금 어디까지 왔는지, 누가 막혀 있는지, 무엇을 먼저 풀어야 하는지 추적합니다.</p>
+            </div>
+            <div class="inline-status">
+              <span class="chip" id="monitorStateChip">배정 미확정</span>
+              <span class="chip subtle" id="monitorSummaryChip">0명 추적 중</span>
+            </div>
+          </div>
+
+          <div class="screen-grid monitor-grid">
+            <section class="panel" id="monitorBoardPanel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">팀플 모니터링</p>
+                  <h2>담당자별 진행 현황</h2>
+                </div>
+              </div>
+
+              <div id="monitorStats" class="monitor-stats"></div>
+              <div id="monitorBoard" class="monitor-board" aria-live="polite"></div>
+            </section>
+
+            <section class="panel" id="monitorAlertsPanel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">리스크</p>
+                  <h2>막힘과 후속 액션</h2>
+                </div>
+              </div>
+
+              <div id="monitorAlerts" class="monitor-alerts"></div>
+            </section>
+          </div>
+
+          <div class="screen-footer">
+            <button class="ghost-button" type="button" data-nav="share">이전: 공유</button>
+            <button class="primary-button" type="button" data-nav="review">배정 수정으로 이동</button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
