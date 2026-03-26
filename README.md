@@ -1,84 +1,166 @@
 # TeamQueue
 
-TeamQueue turns a class assignment brief into a task queue and a role-based assignment draft. It is designed for student team projects, where one person needs to read the brief, split the work, and keep the team moving without losing the big picture.
+과제 공지를 입력하면 팀 역할과 작업 큐로 정리해 주고, 팀플 배분과 진행 상황까지 한 번에 관리할 수 있는 학생용 웹 서비스입니다.
 
-The app opens with a sample brief so you can demo it right away. If `OPENAI_API_KEY` is set, the backend calls OpenAI for the analysis step; otherwise it falls back to a local C engine (`teamqueue_engine.c`) so the workflow still works offline.
+이 프로젝트는 팀플에서 자주 생기는 문제를 줄이기 위해 만들었습니다. 공지가 길어서 읽기 어렵거나, 누가 어떤 일을 맡을지 정하기 애매하거나, 배정한 뒤 진행 상황을 놓치는 상황을 줄이는 것이 목표입니다.
 
-## Architecture
+## 이 프로젝트가 하는 일
 
-- Frontend: `index.html`, `styles.css`, `app.js`
-- Backend: `server.js` on Node.js
-- Local analysis engine: `teamqueue_engine.c` compiled to `teamqueue_engine`
-- Optional AI path: OpenAI is used when a valid API key is present, and the app falls back to the local engine when it is not
+- 과제 공지나 팀플 안내문을 그대로 붙여넣습니다.
+- 팀원 이름, 역할 태그, 가능 시간, 메모를 등록합니다.
+- OpenAI API를 사용해 공지를 분석하고 작업을 나눕니다.
+- 분석 결과를 바탕으로 배정안을 추천합니다.
+- 사용자가 검토 후 확정하면 공유용 요약과 모니터링 화면으로 이어집니다.
 
-## Run
+## 화면 흐름
+
+1. 입력: 과제 공지와 기본 정보를 넣습니다.
+2. 팀원: 팀원 역할과 가능 시간을 등록합니다.
+3. 분석: 공지 내용을 구조화하고 작업 큐를 만듭니다.
+4. 검토: 추천 배정안을 확인하고 수정합니다.
+5. 공유: 팀 채팅이나 문서에 붙여 넣을 요약본을 만듭니다.
+6. 모니터링: 배정된 작업의 진행 상태를 추적합니다.
+
+## 개인 환경에서 실행하기
+
+### 1) 준비물
+
+- Node.js가 설치되어 있어야 합니다.
+- 브라우저로 `http://localhost:3000`에 접속할 수 있어야 합니다.
+- OpenAI 기능을 쓰려면 API 키가 필요합니다.
+
+### 2) 실행 방법
 
 ```bash
 cd /Users/seongyuniverse/Development/SKKU_DataStructure/assignment-planner-ai
 npm start
 ```
 
-Open `http://localhost:3000`.
+별도 패키지 설치 단계는 없습니다. 현재 버전은 추가 npm 의존성이 없어서 바로 실행됩니다.
 
-## Environment
+### 3) 브라우저에서 열기
 
-Create a file named `.env.local` in this folder, or copy from `.env.example`:
+서버가 켜지면 브라우저에서 아래 주소를 열면 됩니다.
+
+```text
+http://localhost:3000
+```
+
+## OpenAI API 키 설정
+
+OpenAI 분석을 사용하려면 개인 API 키를 환경변수로 넣어야 합니다. 키는 GitHub에 올리면 안 되므로, 저장소 안에는 `README.md`와 `screenshots/`만 들어가고 비밀값 파일은 로컬에만 둡니다.
+
+### 1) API 키 발급
+
+OpenAI 계정에서 API key를 새로 발급받습니다.
+
+### 2) 로컬 설정 파일 만들기
+
+프로젝트 폴더에서 `.env.example`을 복사해서 `.env.local` 파일을 만듭니다.
+
+```bash
+cp .env.example .env.local
+```
+
+### 3) 키 입력
+
+`.env.local` 파일을 열고 `OPENAI_API_KEY`에 본인 키를 넣습니다.
 
 ```bash
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
 PORT=3000
 ```
 
-Keep `.env.local` local only. The GitHub upload should include `.env.example`, not your private API key file.
+주의할 점:
 
-## UX Flow
+- 키는 한 줄로만 넣습니다.
+- 앞뒤에 공백을 넣지 않습니다.
+- 주석이나 한글 설명을 같은 줄에 붙이지 않습니다.
+- 키를 다른 사람과 공유하지 않습니다.
 
-1. Paste the assignment brief.
-2. Add or edit team members and role tags.
-3. Run analysis to generate the task queue and assignment draft.
-4. Fill in clarification questions if needed, then reanalyze.
-5. Confirm the final assignment and copy the summary for your team chat.
+### 4) 서버 다시 실행
 
-## Screenshots
+키를 수정한 뒤에는 서버를 껐다가 다시 켜야 합니다.
 
-### 1. Input
-과제 공지를 붙여넣고 분석 기준을 설정하는 시작 화면입니다.
+```bash
+npm start
+```
 
-![TeamQueue input screen](./screenshots/01-intake.png)
+## OpenAI 키가 없을 때는 어떻게 되나
 
-### 2. Team
-팀원별 역할 태그와 가능 시간을 등록해 배정 기준을 정리합니다.
+OpenAI 키가 없거나, 키가 잘못되었거나, API 호출이 실패하더라도 앱은 계속 동작합니다.
 
-![TeamQueue team screen](./screenshots/02-team.png)
+동작 순서는 다음과 같습니다.
 
-### 3. Analysis
-AI가 과제 요구사항과 질문을 구조화해 작업 큐를 만드는 단계입니다.
+1. OpenAI 키가 있으면 먼저 OpenAI로 분석합니다.
+2. OpenAI 호출이 실패하면 로컬 C 분석 엔진 `teamqueue_engine.c`로 다시 시도합니다.
+3. C 엔진도 실패하면 JavaScript 기반의 로컬 규칙 분석으로 마지막 폴백을 수행합니다.
 
-![TeamQueue analysis screen](./screenshots/03-analysis.png)
+즉, 인터넷이 없거나 API가 잠깐 불안정해도 기본 기능은 계속 사용할 수 있습니다.
 
-### 4. Review
-추출된 작업을 검토하고 배정안을 확정하는 단계입니다.
+## 로컬 C 분석 엔진
 
-![TeamQueue review screen](./screenshots/04-review.png)
+이 프로젝트에는 자료구조 수업 취지에 맞게 C로 만든 로컬 분석 엔진이 포함되어 있습니다.
 
-### 5. Share
-확정된 결과를 복사해서 팀 채팅이나 공유 문서에 바로 붙여 넣을 수 있습니다.
+- 파일: `teamqueue_engine.c`
+- 실행 파일: `teamqueue_engine`
+- 역할: 과제 텍스트를 바탕으로 작업 목록, 질문 목록, 추천 배정안을 만드는 로컬 분석 보조기
 
-![TeamQueue share screen](./screenshots/05-share.png)
+서버가 처음 실행될 때 C 컴파일러가 있으면 자동으로 빌드됩니다. macOS에서는 보통 기본 `cc` 또는 Xcode Command Line Tools가 있으면 됩니다. 만약 C 컴파일러가 없더라도 앱은 JavaScript 폴백으로 계속 실행됩니다.
 
-### 6. Monitoring
-배정된 작업의 진행률과 상태를 추적하는 팀플 모니터링 화면입니다.
+## 프로젝트 구성
 
-![TeamQueue monitoring screen](./screenshots/06-monitor.png)
+- 프런트엔드: `index.html`, `styles.css`, `app.js`
+- 백엔드: `server.js`
+- 로컬 분석: `teamqueue_engine.c`
+- 환경 설정 예시: `.env.example`
+- 로컬 비밀값 파일: `.env.local`
 
-## Optional OpenAI API
+## 스크린샷
 
-Set your key in `.env.local` before starting, or export the variables in the shell if you prefer. If no key is set, the app falls back to a local heuristic analyzer so it still runs offline.
+### 1. 입력
 
-## GitHub-safe checklist
+과제 공지를 붙여넣고 분석 기준을 설정하는 화면입니다.
 
-- `.env.local` stays on your machine and is ignored by Git.
-- `.env.example` is the committed template you can share safely.
-- `teamqueue_engine` and `node_modules/` are ignored so build artifacts do not get uploaded.
-- The repository includes a project description, run instructions, architecture notes, and usage flow.
+![TeamQueue 입력 화면](./screenshots/01-intake.png)
+
+### 2. 팀원
+
+팀원별 역할 태그와 가능 시간을 등록하는 화면입니다.
+
+![TeamQueue 팀원 화면](./screenshots/02-team.png)
+
+### 3. 분석
+
+과제 요구사항을 구조화하고 질문 항목을 정리하는 화면입니다.
+
+![TeamQueue 분석 화면](./screenshots/03-analysis.png)
+
+### 4. 검토
+
+추출된 작업과 추천 배정안을 확인하고 수정하는 화면입니다.
+
+![TeamQueue 검토 화면](./screenshots/04-review.png)
+
+### 5. 공유
+
+확정된 결과를 팀 채팅이나 문서로 바로 옮길 수 있게 정리하는 화면입니다.
+
+![TeamQueue 공유 화면](./screenshots/05-share.png)
+
+### 6. 모니터링
+
+배정된 작업의 진행률과 상태를 추적하는 화면입니다.
+
+![TeamQueue 모니터링 화면](./screenshots/06-monitor.png)
+
+## GitHub 업로드 시 주의
+
+- `.env.local`은 개인 환경 파일이라 GitHub에 올리지 않습니다.
+- `.env.example`만 공유용 템플릿으로 남깁니다.
+- `node_modules/`와 `teamqueue_engine` 같은 빌드 결과물도 올리지 않습니다.
+- 비밀키는 README나 스크린샷에 적지 않습니다.
+
+## 한 줄 소개
+
+`TeamQueue, 과제 공지를 팀 역할과 작업 큐로 바꿔 팀플 배분과 진행을 자동화하는 서비스`
